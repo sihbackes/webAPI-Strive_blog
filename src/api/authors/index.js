@@ -4,15 +4,15 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import uniqid from "uniqid";
 
-const authorsRouters = express.Router();
+const authorsRouter = express.Router();
 
 const authorsJSONPath = join(
   dirname(fileURLToPath(import.meta.url)),
   "authors.json"
 );
 
-authorsRouters.post("/", (request, response) => {
-  console.log("REQUEST BODY: ", request.body);
+authorsRouter.post("/", (request, response) => {
+  console.log("REQUEST BODY: ", request);
   const newAuthor = {
     ...request.body,
     id: uniqid(),
@@ -26,20 +26,20 @@ authorsRouters.post("/", (request, response) => {
   response.status(201).send({ id: newAuthor.id });
 });
 
-authorsRouters.get("/", (request, response) => {
+authorsRouter.get("/", (request, response) => {
   const fileContent = fs.readFileSync(authorsJSONPath);
   const authors = JSON.parse(fileContent);
   response.send(authors);
 });
 
-authorsRouters.get("/:authorId", (request, response) => {
+authorsRouter.get("/:authorId", (request, response) => {
   const authorID = request.params.authorId;
   const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
   const foundAuthor = authorsArray.find((author) => author.id === authorID);
   response.send(foundAuthor);
 });
 
-authorsRouters.put("/:authorId", (request, response) => {
+authorsRouter.put("/:authorId", (request, response) => {
   const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
   const index = authorsArray.findIndex(
     (author) => author.id === request.params.authorId
@@ -58,7 +58,7 @@ authorsRouters.put("/:authorId", (request, response) => {
   response.send(updatedAuthor);
 });
 
-authorsRouters.delete("/:authorId", (request, response) => {
+authorsRouter.delete("/:authorId", (request, response) => {
   const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
 
   const remainingAuthors = authorsArray.filter(
@@ -69,4 +69,4 @@ authorsRouters.delete("/:authorId", (request, response) => {
   response.status(204).send();
 });
 
-export default authorsRouters;
+export default authorsRouter;

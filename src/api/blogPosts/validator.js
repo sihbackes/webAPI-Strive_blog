@@ -41,7 +41,7 @@ const postSchema = {
   "author.avatar": {
     in: ["body"],
     isString: {
-      errorMessage: "Avataris a mandatory field and need to be a string!",
+      errorMessage: "Avatar is a mandatory field and need to be a string!",
     },
   },
   content: {
@@ -60,7 +60,7 @@ export const triggerBadRequest = (request, response, next) => {
 
   if (!errors.isEmpty()) {
     next(
-      createHttpError(400, "Errors during book validation", {
+      createHttpError(400, "Errors during post validation", {
         errorsList: errors.array(),
       })
     );

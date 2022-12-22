@@ -1,72 +1,102 @@
-import express from "express";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import express, { request } from "express";
 import uniqid from "uniqid";
+import httpErrors from "http-errors";
+import { checkPostSchema, triggerBadRequest } from "./validator.js";
+import { getAuthors, writeAuthors } from "../../lib/fs-tools.js";
 
+const { NotFound } = httpErrors;
 const authorsRouter = express.Router();
 
-const authorsJSONPath = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "authors.json"
+//POST//
+authorsRouter.post(
+  "/",
+  checkPostSchema,
+  triggerBadRequest,
+  async (request, response, next) => {
+    try {
+      console.log("REQUEST BODY: ", request);
+      const newAuthor = {
+        ...request.body,
+        id: uniqid(),
+      };
+      const authorsArray = await getAuthors();
+      authorsArray.push(newAuthor);
+      writeAuthors(authorsArray);
+      response.status(201).send({ id: newAuthor.id });
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
-authorsRouter.post("/", (request, response) => {
-  console.log("REQUEST BODY: ", request);
-  const newAuthor = {
-    ...request.body,
-    id: uniqid(),
-    avatar: `https://ui-avatars.com/api/?name=${request.body.name}+${request.body.surname}`,
-  };
-
-  const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
-
-  authorsArray.push(newAuthor);
-  fs.writeFileSync(authorsJSONPath, JSON.stringify(authorsArray));
-  response.status(201).send({ id: newAuthor.id });
+//GET//
+authorsRouter.get("/", async (request, response, next) => {
+  try {
+    const authorsArray = await getAuthors();
+    response.send(authorsArray);
+  } catch (error) {
+    next(error);
+  }
 });
 
-authorsRouter.get("/", (request, response) => {
-  const fileContent = fs.readFileSync(authorsJSONPath);
-  const authors = JSON.parse(fileContent);
-  response.send(authors);
+//GET BY ID//
+authorsRouter.get("/:authorId", async (request, response, next) => {
+  try {
+    const authorsArray = await getAuthors();
+    const author = authorsArray.find(
+      (author) => author.id === request.params.auhtorId
+    );
+    if (author) {
+      response.send(author);
+    } else {
+      next(NotFound(`Author with id ${request.params.authorId} not found!`));
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
-authorsRouter.get("/:authorId", (request, response) => {
-  const authorID = request.params.authorId;
-  const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
-  const foundAuthor = authorsArray.find((author) => author.id === authorID);
-  response.send(foundAuthor);
+//EDIT//
+authorsRouter.put("/:authorId", async (request, response, next) => {
+  try {
+    const authorsArray = await getAuthors();
+    const index = authorsArray.findIndex(
+      (author) => author.id === request.params.auhtorId
+    );
+    if (index !== 1) {
+      const oldAuthor = authorsArray[index];
+      const updatedAuthor = {
+        ...oldAuthor,
+        ...request.body,
+        updatedAt: new Date(),
+      };
+      authorsArray[index] = updatedAuthor;
+      writePost(authorsArray);
+      response.send(updatedAuthor);
+    } else {
+      next(NotFound(`Author with id ${request.params.authorId} not found!`));
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
-authorsRouter.put("/:authorId", (request, response) => {
-  const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
-  const index = authorsArray.findIndex(
-    (author) => author.id === request.params.authorId
-  );
-  const oldAuthor = authorsArray[index];
-
-  const updatedAuthor = {
-    ...oldAuthor,
-    ...request.body,
-    id: uniqid(),
-    avatar: `https://ui-avatars.com/api/?name=${request.body.name}+${request.body.surname}`,
-  };
-
-  authorsArray[index] = updatedAuthor;
-  fs.writeFileSync(authorsJSONPath, JSON.stringify(authorsArray));
-  response.send(updatedAuthor);
-});
-
-authorsRouter.delete("/:authorId", (request, response) => {
-  const authorsArray = JSON.parse(fs.readFileSync(authorsJSONPath));
-
-  const remainingAuthors = authorsArray.filter(
-    (author) => author.id !== request.params.authorId
-  );
-
-  fs.writeFileSync(authorsJSONPath, JSON.stringify(remainingAuthors));
-  response.status(204).send();
+//DELETE//
+authorsRouter.delete("/:authorId", async (request, response, next) => {
+  try {
+    const authorsArray = await getAuthors();
+    const remainingAuthors = authorsArray.filter(
+      (author) => author.id !== request.params.authorId
+    );
+    if (authorsArray.length !== remainingAuthors.length) {
+      writePost(remainingAuthors);
+      response.status(204).send();
+    } else {
+      next(NotFound(`Author with id ${request.params.authorId} not found!`));
+    }
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default authorsRouter;

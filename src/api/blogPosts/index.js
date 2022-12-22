@@ -1,30 +1,19 @@
 import express from "express";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-import fs from "fs";
 import uniqid from "uniqid";
 import httpErrors from "http-errors";
 import { checkPostSchema, triggerBadRequest } from "./validator.js";
+import { getPosts, writePost } from "../../lib/fs-tools.js";
 
 const { NotFound } = httpErrors;
 
 const postsRouter = express.Router();
-
-const postsJSONPath = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "posts.json"
-);
-
-const getPosts = () => JSON.parse(fs.readFileSync(postsJSONPath));
-const writePost = (postsArray) =>
-  fs.writeFileSync(postsJSONPath, JSON.stringify(postsArray));
 
 // POST //
 postsRouter.post(
   "/",
   checkPostSchema,
   triggerBadRequest,
-  (request, response, next) => {
+  async (request, response, next) => {
     try {
       console.log("REQUEST BODY: ", request);
       const newPost = {
@@ -33,7 +22,7 @@ postsRouter.post(
         createAt: new Date(),
       };
 
-      const postsArray = getPosts();
+      const postsArray = await getPosts();
       postsArray.push(newPost);
       writePost(postsArray);
       response.status(201).send({ id: newPost._id });
@@ -44,9 +33,9 @@ postsRouter.post(
 );
 
 // GET//
-postsRouter.get("/", (request, response, next) => {
+postsRouter.get("/", async (request, response, next) => {
   try {
-    const postsArray = getPosts();
+    const postsArray = await getPosts();
     if (request.query && request.query.category) {
       const filteredPosts = postsArray.filter(
         (post) => post.category === request.query.category
@@ -61,9 +50,9 @@ postsRouter.get("/", (request, response, next) => {
 });
 
 // GET BY ID //
-postsRouter.get("/:postId", (request, response, next) => {
+postsRouter.get("/:postId", async (request, response, next) => {
   try {
-    const postsArray = getPosts();
+    const postsArray = await getPosts();
     const post = postsArray.find((post) => post._id === request.params.postId);
     if (post) {
       response.send(post);
@@ -76,9 +65,9 @@ postsRouter.get("/:postId", (request, response, next) => {
 });
 
 // EDIT //
-postsRouter.put("/:postId", (request, response, next) => {
+postsRouter.put("/:postId", async (request, response, next) => {
   try {
-    const postsArray = getPosts();
+    const postsArray = await getPosts();
     const index = postsArray.findIndex(
       (post) => post._id === request.params.postId
     );
@@ -101,9 +90,9 @@ postsRouter.put("/:postId", (request, response, next) => {
 });
 
 //DELETE//
-postsRouter.delete("/:postId", (request, response, next) => {
+postsRouter.delete("/:postId", async (request, response, next) => {
   try {
-    const postsArray = getPosts();
+    const postsArray = await getPosts();
     const remainingPosts = postsArray.filter(
       (post) => post._id !== request.params.postId
     );

@@ -4,6 +4,7 @@ import { dirname, join } from "path";
 import fs from "fs";
 import uniqid from "uniqid";
 import httpErrors from "http-errors";
+import { checkPostSchema, triggerBadRequest } from "./validator.js";
 
 const { NotFound } = httpErrors;
 
@@ -19,23 +20,28 @@ const writePost = (postsArray) =>
   fs.writeFileSync(postsJSONPath, JSON.stringify(postsArray));
 
 // POST //
-postsRouter.post("/", (request, response, next) => {
-  try {
-    console.log("REQUEST BODY: ", request);
-    const newPost = {
-      ...request.body,
-      _id: uniqid(),
-      createAt: new Date(),
-    };
+postsRouter.post(
+  "/",
+  checkPostSchema,
+  triggerBadRequest,
+  (request, response, next) => {
+    try {
+      console.log("REQUEST BODY: ", request);
+      const newPost = {
+        ...request.body,
+        _id: uniqid(),
+        createAt: new Date(),
+      };
 
-    const postsArray = getPosts();
-    postsArray.push(newPost);
-    writePost(postsArray);
-    response.status(201).send({ id: newPost._id });
-  } catch (error) {
-    next(error);
+      const postsArray = getPosts();
+      postsArray.push(newPost);
+      writePost(postsArray);
+      response.status(201).send({ id: newPost._id });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 // GET//
 postsRouter.get("/", (request, response, next) => {
